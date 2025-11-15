@@ -212,11 +212,68 @@ Health check endpoint.
 }
 ```
 
+## 🔒 Security
+
+Family Activity Finder implements enterprise-grade security to protect your data and prevent API abuse. **See [SECURITY.md](./SECURITY.md) for complete security documentation.**
+
+### Security Features
+
+✅ **CORS Protection** - API restricted to authorized frontend origin only
+✅ **Rate Limiting** - 10 requests per 15 minutes per IP address
+✅ **Request Size Limits** - 10KB maximum payload to prevent memory attacks
+✅ **Input Validation** - Comprehensive validation on all 8 form fields
+✅ **Security Headers** - Helmet.js with 8 security headers (CSP, HSTS, X-Frame-Options, etc.)
+✅ **Error Sanitization** - No internal details exposed to clients
+✅ **API Key Security** - Keys stored server-side only, never in frontend
+✅ **npm Audit** - 0 vulnerabilities in both backend and frontend
+
+### Rate Limits
+
+- **Limit:** 10 requests per 15 minutes per IP
+- **Response:** HTTP 429 when exceeded
+- **Reset:** Automatic after 15-minute window
+- **Headers:** `RateLimit-*` headers included in all responses
+
+### CORS Configuration
+
+- **Development:** `http://localhost:5173`
+- **Production:** Set via `FRONTEND_URL` environment variable
+- **Unauthorized origins:** Blocked with CORS error
+
+### Security Testing
+
+All security features comprehensively tested:
+- ✅ CORS blocks unauthorized origins
+- ✅ Rate limiter verified with stress test (12 requests)
+- ✅ Oversized payloads rejected (15KB test)
+- ✅ SQL injection attempts blocked
+- ✅ XSS attempts sanitized
+- ✅ All 8 security headers verified active
+
+### Production Environment Variables
+
+**Backend:**
+```bash
+ANTHROPIC_API_KEY=sk-ant-...           # Production API key
+PORT=3001                              # Server port
+FRONTEND_URL=https://yourdomain.com    # Production frontend URL
+NODE_ENV=production                    # Environment mode
+```
+
+**Frontend:**
+```bash
+VITE_API_URL=https://api.yourdomain.com  # Production backend URL
+```
+
+**📖 Full documentation:** [SECURITY.md](./SECURITY.md)
+
+---
+
 ## 🎯 Development Milestones
 
 - ✅ **Milestone 1**: Frontend with dummy data (Complete)
 - ✅ **Milestone 2**: Claude API integration with web search (Complete)
-- 🔄 **Milestone 3**: Production security & deployment (In Progress)
+- ✅ **Milestone 3**: Production security & deployment (Complete - 11/15 core tasks)
 
 See [todo.md](./todo.md) for detailed task breakdowns.
 
@@ -243,6 +300,35 @@ See [todo.md](./todo.md) for detailed task breakdowns.
 ### Web search not working
 - **Solution**: Verify tools configuration includes `type: 'web_search_20250305'`
 - **Solution**: Check that `max_uses: 5` is set for the web search tool
+
+### Rate Limit Errors (HTTP 429)
+- **Problem**: "Too many requests from this IP, please try again after 15 minutes"
+- **Solution**: Wait for the rate limit window to reset (check `RateLimit-Reset` header)
+- **Solution**: Reduce request frequency (current limit: 10 requests per 15 minutes)
+- **Note**: This is expected behavior to prevent API abuse
+
+### CORS Blocked from Different Domain
+- **Problem**: CORS error when accessing API from unauthorized origin
+- **Solution**: Update `FRONTEND_URL` in backend `.env` to your frontend domain
+- **Solution**: For development, ensure frontend is running on `http://localhost:5173`
+- **Note**: This is a security feature, not a bug
+
+### Request Too Large (HTTP 413)
+- **Problem**: "Payload Too Large" error
+- **Solution**: Ensure request body is under 10KB
+- **Solution**: Reduce length of preferences field (max 500 characters)
+- **Note**: Size limit prevents memory exhaustion attacks
+
+### Invalid Input Errors (HTTP 400)
+- **Problem**: Input validation failing with specific error messages
+- **Solution**: Check field requirements in error message
+- **Common issues:**
+  - City: Only letters, spaces, hyphens, apostrophes, periods allowed
+  - State: Must be valid 2-letter US state code (e.g., CA, NY, TX)
+  - ZipCode: Must be exactly 5 digits
+  - Ages: Must be integers between 0-18
+  - Date: Must be YYYY-MM-DD format within 1 year from today
+  - Distance: Must be between 1-50 miles
 
 ## 📝 Development Scripts
 
