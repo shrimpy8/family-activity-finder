@@ -175,20 +175,120 @@ router.post('/recommend', async (req: Request, res: Response) => {
   try {
     const formData: ActivityFormData = req.body;
 
-    // Validate required fields
-    if (!formData.city || !formData.state || !formData.ages || formData.ages.length === 0 || !formData.date || !formData.timeSlot) {
-      res.status(400).json({
-        error: 'Missing required fields: city, state, ages, date, and timeSlot are required',
-      });
+    // Comprehensive input validation
+
+    // 1. Validate city
+    if (!formData.city || typeof formData.city !== 'string') {
+      res.status(400).json({ error: 'City is required and must be a string' });
+      return;
+    }
+    if (formData.city.trim().length === 0 || formData.city.length > 100) {
+      res.status(400).json({ error: 'City must be between 1 and 100 characters' });
+      return;
+    }
+    if (!/^[a-zA-Z\s\-'.]+$/.test(formData.city)) {
+      res.status(400).json({ error: 'City contains invalid characters' });
       return;
     }
 
-    // Validate distance
-    if (!formData.distance || formData.distance <= 0) {
-      res.status(400).json({
-        error: 'Distance must be greater than 0',
-      });
+    // 2. Validate state
+    if (!formData.state || typeof formData.state !== 'string') {
+      res.status(400).json({ error: 'State is required and must be a string' });
       return;
+    }
+    const validStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'];
+    if (!validStates.includes(formData.state.toUpperCase())) {
+      res.status(400).json({ error: 'State must be a valid US state code (e.g., CA, NY, TX)' });
+      return;
+    }
+
+    // 3. Validate zipCode (optional)
+    if (formData.zipCode) {
+      if (typeof formData.zipCode !== 'string') {
+        res.status(400).json({ error: 'Zip code must be a string' });
+        return;
+      }
+      if (!/^\d{5}$/.test(formData.zipCode)) {
+        res.status(400).json({ error: 'Zip code must be a 5-digit number' });
+        return;
+      }
+    }
+
+    // 4. Validate ages
+    if (!formData.ages || !Array.isArray(formData.ages) || formData.ages.length === 0) {
+      res.status(400).json({ error: 'Ages is required and must be a non-empty array' });
+      return;
+    }
+    if (formData.ages.length > 10) {
+      res.status(400).json({ error: 'Cannot specify more than 10 ages' });
+      return;
+    }
+    for (const age of formData.ages) {
+      if (typeof age !== 'number' || !Number.isInteger(age)) {
+        res.status(400).json({ error: 'All ages must be integers' });
+        return;
+      }
+      if (age < 0 || age > 18) {
+        res.status(400).json({ error: 'All ages must be between 0 and 18' });
+        return;
+      }
+    }
+
+    // 5. Validate date
+    if (!formData.date || typeof formData.date !== 'string') {
+      res.status(400).json({ error: 'Date is required and must be a string' });
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(formData.date)) {
+      res.status(400).json({ error: 'Date must be in YYYY-MM-DD format' });
+      return;
+    }
+    const dateObj = new Date(formData.date + 'T00:00:00');
+    if (isNaN(dateObj.getTime())) {
+      res.status(400).json({ error: 'Date is not a valid date' });
+      return;
+    }
+    // Allow dates up to 1 year in the past (for flexibility) and up to 1 year in the future
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    if (dateObj < oneYearAgo || dateObj > oneYearFromNow) {
+      res.status(400).json({ error: 'Date must be within one year from today' });
+      return;
+    }
+
+    // 6. Validate timeSlot
+    if (!formData.timeSlot || typeof formData.timeSlot !== 'string') {
+      res.status(400).json({ error: 'Time slot is required and must be a string' });
+      return;
+    }
+    const validTimeSlots = ['all_day', 'morning', 'afternoon', 'evening', 'night'];
+    if (!validTimeSlots.includes(formData.timeSlot)) {
+      res.status(400).json({ error: 'Time slot must be one of: all_day, morning, afternoon, evening, night' });
+      return;
+    }
+
+    // 7. Validate distance
+    if (!formData.distance || typeof formData.distance !== 'number') {
+      res.status(400).json({ error: 'Distance is required and must be a number' });
+      return;
+    }
+    if (!Number.isFinite(formData.distance) || formData.distance < 1 || formData.distance > 50) {
+      res.status(400).json({ error: 'Distance must be between 1 and 50 miles' });
+      return;
+    }
+
+    // 8. Validate preferences (optional)
+    if (formData.preferences !== undefined && formData.preferences !== null) {
+      if (typeof formData.preferences !== 'string') {
+        res.status(400).json({ error: 'Preferences must be a string' });
+        return;
+      }
+      if (formData.preferences.length > 500) {
+        res.status(400).json({ error: 'Preferences must be 500 characters or less' });
+        return;
+      }
     }
 
     console.log('📥 Received request:', formData);
@@ -238,9 +338,9 @@ router.post('/recommend', async (req: Request, res: Response) => {
     console.log(`📊 Parsed ${recommendations.length} recommendations`);
 
     if (recommendations.length === 0) {
+      console.error('Parse error - raw response:', responseText);
       res.status(500).json({
-        error: 'Failed to parse recommendations from Claude response',
-        rawResponse: responseText,
+        error: 'Unable to process recommendations. Please try again with different search criteria.',
       });
       return;
     }
@@ -253,15 +353,16 @@ router.post('/recommend', async (req: Request, res: Response) => {
     console.error('❌ Error:', error);
 
     if (error instanceof Anthropic.APIError) {
+      console.error('Claude API Error details:', error.message, error.status);
       res.status(error.status || 500).json({
-        error: `Claude API Error: ${error.message}`,
+        error: 'Unable to fetch activity recommendations. Please try again later.',
       });
       return;
     }
 
+    console.error('Internal error details:', error instanceof Error ? error.message : 'Unknown error');
     res.status(500).json({
-      error: 'Internal server error',
-      message: error instanceof Error ? error.message : 'Unknown error',
+      error: 'An unexpected error occurred. Please try again.',
     });
   }
 });
