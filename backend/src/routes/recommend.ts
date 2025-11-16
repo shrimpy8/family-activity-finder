@@ -1,8 +1,14 @@
 import { Router, Request, Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 import type { ActivityFormData, Recommendation, RecommendResponse } from '../types';
+import { TIME_SLOT_LABELS, TIME_SLOTS } from '../shared/constants';
+import { formatDateLong } from '../shared/utils/date';
+import { validateCityName, validateState, validateZipCode, validateAges } from '../shared/validators';
 
 const router = Router();
+
+// Debug logging flag - set DEBUG_LOGGING=true in .env to enable verbose logs
+const DEBUG_LOGGING = process.env.DEBUG_LOGGING === 'true';
 
 // Build prompt from template
 function buildPrompt(formData: ActivityFormData): string {
@@ -16,23 +22,10 @@ function buildPrompt(formData: ActivityFormData): string {
     : `${city}, ${state}`;
 
   // Convert date to human-readable format
-  const dateObj = new Date(date + 'T12:00:00');
-  const dateStr = dateObj.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
+  const dateStr = formatDateLong(date);
 
   // Convert time slot to human-readable format
-  const timeSlotMap = {
-    all_day: 'All Day',
-    morning: 'Morning (8 AM - 12 PM)',
-    afternoon: 'Afternoon (12 PM - 4 PM)',
-    evening: 'Evening (4 PM - 8 PM)',
-    night: 'Night (8 PM - 11 PM)'
-  };
-  const timeStr = timeSlotMap[timeSlot];
+  const timeStr = TIME_SLOT_LABELS[timeSlot];
 
   return `You are a family activity expert helping parents discover real, current activities for their children.
 
@@ -101,43 +94,49 @@ Begin your web search now and provide 5 recommendations.`;
 function parseRecommendations(responseText: string): Recommendation[] {
   const recommendations: Recommendation[] = [];
 
-  // Split by emoji pattern (emoji at start of line)
-  const sections = responseText.split(/\n(?=[^\s])/);
+  console.log('\n🔍 PARSING RECOMMENDATIONS...');
 
-  for (const section of sections) {
-    const trimmed = section.trim();
-    if (!trimmed) continue;
+  // Use regex to match complete recommendation blocks
+  // Pattern: emoji + title + location + description
+  const recommendationPattern = /([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}][\uFE0F]?)\s*\*\*([^*]+)\*\*\s*\n📍\s*([^•\n]+)•\s*([^\n]+)\s*\n+(.+?)(?=\n[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]|$)/gus;
 
-    // Extract emoji (first character if it's an emoji)
-    const emojiMatch = trimmed.match(/^([^\w\s])/);
-    if (!emojiMatch || !emojiMatch[1]) continue;
+  const matches = [...responseText.matchAll(recommendationPattern)];
+  console.log(`📦 Found ${matches.length} recommendation matches`);
 
-    const emoji = emojiMatch[1];
+  for (const match of matches) {
+    // match[1] = emoji
+    // match[2] = title
+    // match[3] = location
+    // match[4] = distance
+    // match[5] = description
 
-    // Extract title (between ** markers)
-    const titleMatch = trimmed.match(/\*\*([^*]+)\*\*/);
-    if (!titleMatch || !titleMatch[1]) continue;
-
-    const title = titleMatch[1].trim();
-
-    // Extract location and distance (line starting with 📍)
-    const locationMatch = trimmed.match(/📍\s*([^•]+)•\s*([^\n]+)/);
-    const location = locationMatch?.[1]?.trim() ?? 'Location not specified';
-    const distance = locationMatch?.[2]?.trim() ?? 'Distance not specified';
-
-    // Extract description (everything after the location line)
-    const descMatch = trimmed.match(/📍[^\n]+\n(.+)/s);
-    const description = descMatch?.[1]?.trim() ?? trimmed.split('\n').slice(2).join(' ').trim();
-
-    if (emoji && title && description) {
-      recommendations.push({
-        emoji,
-        title,
-        description,
-        location,
-        distance,
-      });
+    if (!match[1] || !match[2] || !match[3] || !match[4] || !match[5]) {
+      console.log(`\n❌ Skipped malformed match`);
+      continue;
     }
+
+    const emoji = match[1];
+    const title = match[2].trim();
+    const location = match[3].trim();
+    const distance = match[4].trim();
+    const description = match[5].trim();
+
+    if (DEBUG_LOGGING) {
+      console.log(`\n✅ Parsed recommendation #${recommendations.length + 1}:`);
+      console.log(`   Emoji: "${emoji}" (charCode: ${emoji.charCodeAt(0)})`);
+      console.log(`   Title: "${title}"`);
+      console.log(`   Location: "${location}"`);
+      console.log(`   Distance: "${distance}"`);
+      console.log(`   Description: "${description.substring(0, 100)}..."`);
+    }
+
+    recommendations.push({
+      emoji,
+      title,
+      description,
+      location,
+      distance,
+    });
   }
 
   // Fallback: if parsing failed, try simpler approach
@@ -152,16 +151,27 @@ function parseRecommendations(responseText: string): Recommendation[] {
       const firstLine = lines[0];
       if (!firstLine) continue;
 
-      const emojiMatch = firstLine.match(/^([^\w\s])/);
+      // Use proper emoji Unicode ranges in fallback too
+      const emojiMatch = firstLine.match(/^([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}])/u);
       const titleMatch = firstLine.match(/\*\*([^*]+)\*\*/);
 
       if (emojiMatch?.[1] && titleMatch?.[1]) {
+        // Try to extract location and distance from the joined text
+        const fullText = lines.slice(1).join('\n');
+        const locationMatch = fullText.match(/📍\s*([^•]+)•\s*([^\n]+)/);
+        const location = locationMatch?.[1]?.trim() || 'See description';
+        const distance = locationMatch?.[2]?.trim() || 'See description';
+
+        // Extract description (text after location line)
+        const descMatch = fullText.match(/📍[^\n]+\n(.+)/s);
+        const description = descMatch?.[1]?.trim() || fullText.replace(/📍[^\n]+\n?/, '').trim();
+
         recommendations.push({
           emoji: emojiMatch[1],
           title: titleMatch[1].trim(),
-          description: lines.slice(1).join(' ').trim(),
-          location: 'See description',
-          distance: 'See description',
+          description: description || fullText,
+          location,
+          distance,
         });
       }
     }
@@ -178,60 +188,31 @@ router.post('/recommend', async (req: Request, res: Response) => {
     // Comprehensive input validation
 
     // 1. Validate city
-    if (!formData.city || typeof formData.city !== 'string') {
-      res.status(400).json({ error: 'City is required and must be a string' });
-      return;
-    }
-    if (formData.city.trim().length === 0 || formData.city.length > 100) {
-      res.status(400).json({ error: 'City must be between 1 and 100 characters' });
-      return;
-    }
-    if (!/^[a-zA-Z\s\-'.]+$/.test(formData.city)) {
-      res.status(400).json({ error: 'City contains invalid characters' });
+    const cityError = validateCityName(formData.city);
+    if (cityError) {
+      res.status(400).json({ error: cityError });
       return;
     }
 
     // 2. Validate state
-    if (!formData.state || typeof formData.state !== 'string') {
-      res.status(400).json({ error: 'State is required and must be a string' });
-      return;
-    }
-    const validStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'];
-    if (!validStates.includes(formData.state.toUpperCase())) {
-      res.status(400).json({ error: 'State must be a valid US state code (e.g., CA, NY, TX)' });
+    const stateError = validateState(formData.state);
+    if (stateError) {
+      res.status(400).json({ error: stateError });
       return;
     }
 
     // 3. Validate zipCode (optional)
-    if (formData.zipCode) {
-      if (typeof formData.zipCode !== 'string') {
-        res.status(400).json({ error: 'Zip code must be a string' });
-        return;
-      }
-      if (!/^\d{5}$/.test(formData.zipCode)) {
-        res.status(400).json({ error: 'Zip code must be a 5-digit number' });
-        return;
-      }
+    const zipCodeError = validateZipCode(formData.zipCode);
+    if (zipCodeError) {
+      res.status(400).json({ error: zipCodeError });
+      return;
     }
 
     // 4. Validate ages
-    if (!formData.ages || !Array.isArray(formData.ages) || formData.ages.length === 0) {
-      res.status(400).json({ error: 'Ages is required and must be a non-empty array' });
+    const agesError = validateAges(formData.ages);
+    if (agesError) {
+      res.status(400).json({ error: agesError });
       return;
-    }
-    if (formData.ages.length > 10) {
-      res.status(400).json({ error: 'Cannot specify more than 10 ages' });
-      return;
-    }
-    for (const age of formData.ages) {
-      if (typeof age !== 'number' || !Number.isInteger(age)) {
-        res.status(400).json({ error: 'All ages must be integers' });
-        return;
-      }
-      if (age < 0 || age > 18) {
-        res.status(400).json({ error: 'All ages must be between 0 and 18' });
-        return;
-      }
     }
 
     // 5. Validate date
@@ -263,8 +244,7 @@ router.post('/recommend', async (req: Request, res: Response) => {
       res.status(400).json({ error: 'Time slot is required and must be a string' });
       return;
     }
-    const validTimeSlots = ['all_day', 'morning', 'afternoon', 'evening', 'night'];
-    if (!validTimeSlots.includes(formData.timeSlot)) {
+    if (!TIME_SLOTS.includes(formData.timeSlot as any)) {
       res.status(400).json({ error: 'Time slot must be one of: all_day, morning, afternoon, evening, night' });
       return;
     }
@@ -330,7 +310,11 @@ router.post('/recommend', async (req: Request, res: Response) => {
       .map((block) => (block as { type: 'text'; text: string }).text)
       .join('\n');
 
-    console.log('📝 Response text:', responseText.substring(0, 200) + '...');
+    if (DEBUG_LOGGING) {
+      console.log('\n========== FULL CLAUDE RESPONSE ==========');
+      console.log(responseText);
+      console.log('========== END RESPONSE (length:', responseText.length, 'chars) ==========\n');
+    }
 
     // Parse recommendations
     const recommendations = parseRecommendations(responseText);

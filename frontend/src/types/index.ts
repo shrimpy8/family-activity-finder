@@ -1,22 +1,13 @@
-export type { ActivityFormData, Recommendation };
-
-export type TimeSlot = 'all_day' | 'morning' | 'afternoon' | 'evening' | 'night';
-
-export interface ActivityFormData {
-  city: string;
-  state: string;
-  zipCode?: string; // Optional: user can provide zip code instead
-  ages: number[];
-  date: string; // YYYY-MM-DD format
-  timeSlot: TimeSlot;
-  distance: number;
-  preferences: string;
-}
-
-export interface Recommendation {
-  emoji: string;
-  title: string;
-  description: string;
-  location: string;
-  distance: string;
-}
+/**
+ * Re-export shared types from backend
+ * This ensures type consistency across frontend and backend
+ *
+ * Note: Frontend imports from backend's shared types to maintain
+ * a single source of truth for all data structures
+ */
+export type {
+  TimeSlot,
+  ActivityFormData,
+  Recommendation,
+  RecommendResponse
+} from '../../../backend/src/shared/types';

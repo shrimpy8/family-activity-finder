@@ -34,7 +34,7 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
+        <div className="max-w-[1574px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xl">
               🎯
@@ -54,7 +54,7 @@ function App() {
       </header>
 
       {/* Main Content - Two Column Layout */}
-      <div className="max-w-[1400px] mx-auto p-6">
+      <div className="max-w-[1574px] mx-auto p-6">
         <div className="flex gap-6">
           {/* Left Column - Form */}
           <div className="sticky top-6 self-start" style={{ width: '418px', flexShrink: 0 }}>

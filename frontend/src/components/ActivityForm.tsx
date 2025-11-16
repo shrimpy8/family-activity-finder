@@ -1,28 +1,12 @@
 import { useState } from 'react';
 import type { ActivityFormData, TimeSlot } from '../types/index.ts';
+import { getNextWeekend, getTomorrow } from '../utils/date';
 
 interface ActivityFormProps {
   onSubmit: (data: ActivityFormData) => void;
 }
 
 export function ActivityForm({ onSubmit }: ActivityFormProps) {
-  // Helper function to get next weekend date (Saturday)
-  const getNextWeekend = () => {
-    const today = new Date();
-    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
-
-    // If today is already the weekend (Saturday or Sunday), use today
-    if (dayOfWeek === 6 || dayOfWeek === 0) {
-      return today.toISOString().split('T')[0];
-    }
-
-    // Otherwise, calculate days until next Saturday
-    const daysUntilSaturday = 6 - dayOfWeek;
-    const nextSaturday = new Date(today);
-    nextSaturday.setDate(today.getDate() + daysUntilSaturday);
-    return nextSaturday.toISOString().split('T')[0];
-  };
-
   const [city, setCity] = useState('Dublin');
   const [state, setState] = useState('CA');
   const [zipCode, setZipCode] = useState('');
@@ -69,13 +53,6 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
     setTimeSlot('afternoon');
     setDistance(10);
     setPreferences('');
-  };
-
-  // Get tomorrow's date as minimum selectable date
-  const getTomorrowDate = () => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return tomorrow.toISOString().split('T')[0];
   };
 
   return (
@@ -185,7 +162,7 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 id="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                min={getTomorrowDate()}
+                min={getTomorrow()}
                 required
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />

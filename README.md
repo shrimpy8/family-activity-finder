@@ -357,6 +357,8 @@ ISC
 
 ## 🙏 Acknowledgments
 
+**Project Inspiration**: This project was inspired by [Peter Yang's podcast episode "Full Tutorial: 20 Tips to Master Claude Code"](https://www.youtube.com/watch?v=jWlAvdR8HG0&list=PLYjaE5GkSwx4yBt6N51P98PyDuGTzWqjK&index=6). The tutorial's core concept served as the foundation, which I then extended with additional features including enhanced security, production-ready architecture, comprehensive input validation, and improved UI/UX.
+
 - Built with [Claude Code](https://claude.com/code)
 - Powered by [Anthropic's Claude API](https://www.anthropic.com/)
 - UI framework: [React](https://react.dev/)
