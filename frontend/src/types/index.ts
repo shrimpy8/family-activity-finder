@@ -9,5 +9,8 @@ export type {
   TimeSlot,
   ActivityFormData,
   Recommendation,
-  RecommendResponse
+  RecommendResponse,
+  LLMProvider,
+  OutputFormat,
+  MultiProviderResponse
 } from '../../../backend/src/shared/types';

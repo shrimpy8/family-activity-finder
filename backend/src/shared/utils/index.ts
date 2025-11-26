@@ -3,3 +3,5 @@
  */
 
 export * from './date';
+export * from './sanitize';
+export * from './timeout';

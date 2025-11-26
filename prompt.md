@@ -1,6 +1,12 @@
-# Claude API Prompt Template - Family Activity Finder
+# Multi-LLM Provider Prompt Template - Family Activity Finder
 
-This document contains the production prompt template used in Milestone 2 to call the Claude Messages API with web search enabled.
+This document contains the production prompt templates used to call various LLM providers (Anthropic Claude, Perplexity, Google Gemini) with web search capabilities.
+
+## Supported Providers
+
+- **Anthropic Claude Sonnet 4.5** - Native web search via `web_search` tool
+- **Perplexity Sonar** - Built-in real-time web search
+- **Google Gemini 2.5 Flash** - Basic implementation (web search capabilities may vary)
 
 ---
 
@@ -24,7 +30,7 @@ The following variables will be injected from the user's form submission:
 
 ## Main Prompt Template
 
-```
+```text
 You are a family activity expert helping parents discover real, current activities for their children.
 
 **Task:** Search the web for family-friendly activities happening in {locationStr}, USA that match the following criteria.
@@ -66,20 +72,23 @@ For each recommendation, provide:
    - Why it's great for kids of the specified ages
 
 **Format each recommendation EXACTLY as:**
-```
+
+```markdown
 [Emoji] **[Activity Title with Timing]**
 📍 [Location Name] • [Distance]
 [Description paragraph]
 ```
 
 **Example:**
-```
+
+```text
 🎨 **Children's Art Workshop at SFMOMA - Saturday 2pm-4pm**
 📍 San Francisco Museum of Modern Art • 0.3 miles
 The San Francisco Museum of Modern Art hosts hands-on art workshops every Saturday afternoon specifically designed for kids ages 4-10. The free workshops let children create their own masterpieces inspired by current exhibitions. Perfect for creative kids who love getting messy with paint and exploring different art techniques.
 ```
 
 Please prioritize:
+
 - Accuracy (verify activities are real and current via web search)
 - Diversity (different types of activities, not all museums or all parks)
 - Age-appropriateness (genuinely suitable for {ages})
@@ -92,7 +101,21 @@ Begin your web search now and provide 5 recommendations.
 
 ## API Implementation (TypeScript)
 
-### Example Code for Milestone 2
+### Provider Architecture
+
+The application uses a provider abstraction pattern to support multiple LLM providers:
+
+```typescript
+// Provider interface
+interface LLMProvider {
+  generateRecommendations(formData: ActivityFormData, options?: GenerateOptions): Promise<Recommendation[]>;
+  supportsWebSearch(): boolean;
+  getModelName(): string;
+  getProviderId(): string;
+}
+```
+
+### Anthropic Claude Implementation
 
 ```typescript
 import Anthropic from '@anthropic-ai/sdk';
@@ -280,7 +303,7 @@ function parseRecommendations(responseText: string) {
 
 If you prefer structured JSON output for easier parsing, modify the prompt:
 
-```
+```text
 **Output Format:**
 Return your response as a JSON array with exactly 5 objects, each with this structure:
 
@@ -306,6 +329,7 @@ const recommendations = JSON.parse(responseText);
 ### Test Inputs
 
 **Test Case 1: Specific Weekend**
+
 - City: "Portland, Oregon"
 - Ages: [5, 8]
 - Availability: "Saturday, March 16, 2024"
@@ -313,6 +337,7 @@ const recommendations = JSON.parse(responseText);
 - Preferences: "outdoor activities, free or low-cost"
 
 **Test Case 2: General Availability**
+
 - City: "Austin, Texas"
 - Ages: [3, 6, 10]
 - Availability: "this weekend"
@@ -320,6 +345,7 @@ const recommendations = JSON.parse(responseText);
 - Preferences: "educational, indoor options"
 
 **Test Case 3: No Preferences**
+
 - City: "Seattle, WA"
 - Ages: [7]
 - Availability: "Sunday afternoon"
@@ -338,19 +364,23 @@ const recommendations = JSON.parse(responseText);
 
 ## Prompt Refinement Tips
 
-### If Results Are Not Relevant:
+### If Results Are Not Relevant
+
 - Add more specific location context: "in the {city} metro area"
 - Emphasize timing: "specifically available on {availability}"
 - Add negative constraints: "Do NOT suggest activities that require advance booking weeks in advance"
 
-### If Results Are Too Generic:
+### If Results Are Too Generic
+
 - Request more specific details: "Include exact addresses or neighborhood names"
 - Ask for current information: "Verify these are currently operating in 2024"
 
-### If Results Don't Match Ages:
+### If Results Don't Match Ages
+
 - Be more explicit: "These activities must be safe and engaging specifically for {ages}-year-olds, not just 'family-friendly' in general"
 
-### If Not Getting 5 Results:
+### If Not Getting 5 Results
+
 - Relax some constraints: "If you can't find enough options within {distance} miles, expand up to {distance + 10} miles"
 - Allow broader categories: "Include both special events AND everyday venues"
 
@@ -360,18 +390,22 @@ const recommendations = JSON.parse(responseText);
 
 ### Scenarios to Handle in Code
 
-1. **No activities found:**
+1. **No activities found**
+
    - Response: "Sorry, we couldn't find activities matching your criteria. Try expanding your distance or being more flexible with timing."
 
-2. **API timeout or failure:**
+2. **API timeout or failure**
+
    - Response: "We're having trouble searching right now. Please try again in a moment."
 
-3. **Incomplete response (less than 5):**
+3. **Incomplete response (less than 5)**
+
    - Decide whether to:
      - Show what was found ("We found 3 activities for you...")
      - OR request exactly 5 by retrying
 
-4. **Parsing errors:**
+4. **Parsing errors**
+
    - Log the raw response for debugging
    - Show generic error to user
    - Consider implementing fallback parsing logic
@@ -401,8 +435,33 @@ const recommendations = JSON.parse(responseText);
 
 ---
 
+## Multi-Provider Support
+
+### Provider Selection
+
+Users can select their preferred LLM provider in the ActivityForm UI:
+- **Anthropic Claude Sonnet 4.5** (Default) - Best for detailed, citation-backed recommendations
+- **Perplexity Sonar Large Online** - Fast, real-time web search results
+- **Google Gemini 2.0 Flash** - General purpose (web search capabilities may vary)
+
+### Output Formats
+
+- **Markdown** (Default) - Human-readable format with emojis and formatting
+- **JSON** - Structured data format for programmatic use
+
+### Environment Variables
+
+Each provider requires its own API key:
+- `ANTHROPIC_API_KEY` - Required for Anthropic Claude
+- `PERPLEXITY_API_KEY` - Required for Perplexity
+- `GEMINI_API_KEY` - Required for Google Gemini
+
+At least one provider API key must be configured. The default provider is Anthropic Claude.
+
 ## References
 
-- **Claude Messages API:** https://docs.anthropic.com/en/api/messages
-- **Web Search Tool:** https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool
-- **Prompt Engineering Guide:** https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering
+- **Claude Messages API:** <https://docs.anthropic.com/en/api/messages>
+- **Web Search Tool:** <https://docs.claude.com/en/docs/agents-and-tools/tool-use/web-search-tool>
+- **Prompt Engineering Guide:** <https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering>
+- **Perplexity API:** <https://docs.perplexity.ai/>
+- **Google Gemini API:** <https://ai.google.dev/docs>

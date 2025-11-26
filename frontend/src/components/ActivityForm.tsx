@@ -1,11 +1,20 @@
 import { useState } from 'react';
-import type { ActivityFormData, TimeSlot } from '../types/index.ts';
+import type { ActivityFormData, TimeSlot, LLMProvider } from '../types/index.ts';
 import { getNextWeekend, getTomorrow } from '../utils/date';
+import { getProviderIcon } from '../utils/providerIcons';
 
+/**
+ * Props for ActivityForm component
+ */
 interface ActivityFormProps {
+  /** Callback function called when form is submitted with valid data */
   onSubmit: (data: ActivityFormData) => void;
 }
 
+/**
+ * ActivityForm component - Main form for searching family activities
+ * Allows users to input location, date, preferences, and select AI provider
+ */
 export function ActivityForm({ onSubmit }: ActivityFormProps) {
   const [city, setCity] = useState('Dublin');
   const [state, setState] = useState('CA');
@@ -15,6 +24,7 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('all_day');
   const [distance, setDistance] = useState(10);
   const [preferences, setPreferences] = useState('outdoor activities, family-friendly');
+  const [provider, setProvider] = useState<LLMProvider>('anthropic');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +50,8 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
       date,
       timeSlot,
       distance,
-      preferences
+      preferences,
+      provider
     });
   };
 
@@ -53,7 +64,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
     setTimeSlot('afternoon');
     setDistance(10);
     setPreferences('');
+    setProvider('anthropic');
   };
+
+  // Provider options with model names
+  const providerOptions: { value: LLMProvider; label: string; model?: string }[] = [
+    { value: 'anthropic', label: 'Anthropic Claude', model: 'Sonnet 4.5' },
+    { value: 'perplexity', label: 'Perplexity', model: 'Sonar' },
+    { value: 'gemini', label: 'Google Gemini', model: '2.5 Flash' },
+    { value: 'all', label: 'All AI Providers' },
+  ];
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-5">
@@ -61,6 +81,51 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
       <div className="pb-4 border-b border-gray-200">
         <h2 className="text-lg font-bold text-gray-900">Search Activities</h2>
         <p className="text-sm text-gray-500 mt-1">Tell us about your family</p>
+      </div>
+
+      {/* LLM Provider Selection - Radio Button Group */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">
+          AI Provider <span className="text-red-500">*</span>
+        </label>
+        <div className="space-y-2">
+          {providerOptions.map((option) => (
+            <label
+              key={option.value}
+              htmlFor={`provider-${option.value}`}
+              className={`flex items-center p-3 border-2 rounded-lg cursor-pointer transition ${
+                provider === option.value
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <input
+                type="radio"
+                id={`provider-${option.value}`}
+                name="provider"
+                value={option.value}
+                checked={provider === option.value}
+                onChange={(e) => setProvider(e.target.value as LLMProvider)}
+                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                required
+              />
+              <div className="ml-3 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{getProviderIcon(option.value)}</span>
+                  <span className="font-medium text-gray-900">{option.label}</span>
+                  {option.model && (
+                    <span className="text-xs text-gray-500">- {option.model}</span>
+                  )}
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          {provider === 'all'
+            ? 'All available AI providers will be queried in parallel'
+            : `Selected: ${providerOptions.find((opt) => opt.value === provider)?.label}${providerOptions.find((opt) => opt.value === provider)?.model ? ` - ${providerOptions.find((opt) => opt.value === provider)?.model}` : ''}`}
+        </p>
       </div>
 
       {/* Location Section */}

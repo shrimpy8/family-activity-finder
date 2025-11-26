@@ -9,6 +9,16 @@
 export type TimeSlot = 'all_day' | 'morning' | 'afternoon' | 'evening' | 'night';
 
 /**
+ * LLM Provider options
+ */
+export type LLMProvider = 'anthropic' | 'perplexity' | 'gemini' | 'all';
+
+/**
+ * Output format options
+ */
+export type OutputFormat = 'markdown' | 'json';
+
+/**
  * Form data submitted by the user to search for activities
  */
 export interface ActivityFormData {
@@ -28,6 +38,8 @@ export interface ActivityFormData {
   distance: number;
   /** Additional preferences or requirements (max 500 characters) */
   preferences: string;
+  /** LLM provider to use (defaults to 'anthropic', use 'all' for parallel multi-provider requests) */
+  provider?: LLMProvider;
 }
 
 /**
@@ -52,4 +64,20 @@ export interface Recommendation {
 export interface RecommendResponse {
   /** Array of activity recommendations (typically 5) */
   recommendations: Recommendation[];
+}
+
+/**
+ * Multi-provider response for parallel requests
+ */
+export interface MultiProviderResponse {
+  /** Provider identifier */
+  provider: string;
+  /** Model display name */
+  modelName: string;
+  /** Recommendations if successful */
+  recommendations?: Recommendation[];
+  /** Error message if failed */
+  error?: string;
+  /** Full error response object for debugging */
+  fullErrorResponse?: any;
 }
