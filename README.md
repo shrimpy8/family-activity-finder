@@ -1,6 +1,6 @@
 # 🎯 Family Activity Finder
 
-Discover personalized family-friendly activities using AI-powered web search. Built with React, TypeScript, and Claude AI.
+Discover personalized family-friendly activities using AI-powered web search. Built with React, TypeScript, and Claude, Perplexity and Gemini AI.
 
 ![Family Activity Finder](./docs/images/anthropic-results.png)
 
