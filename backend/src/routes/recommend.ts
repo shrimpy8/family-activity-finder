@@ -7,6 +7,7 @@ import { createProvider, isProviderAvailable, getAvailableProviders } from '../s
 import { sanitizeErrorMessage } from '../shared/utils/sanitize';
 import { withTimeout } from '../shared/utils/timeout';
 import { DEBUG_LOGGING, OUTPUT_FORMAT, LLM_TIMEOUT_MS } from '../shared/config';
+import { ProviderError } from '../shared/errors';
 
 const router = Router();
 
@@ -129,23 +130,17 @@ router.post('/recommend', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('❌ Error:', error);
 
-    if (error instanceof Error) {
-      if (error.message.includes('API_KEY') || error.message.includes('environment variable')) {
-        res.status(500).json({ error: 'API key not configured. Please contact support.' });
-        return;
-      }
-      if (error.message.includes('Perplexity') || error.message.includes('Gemini') || error.message.includes('Anthropic')) {
-        const providerId = (req.body as ActivityFormData)?.provider || 'provider';
-        res.status(500).json({
-          error: `Unable to fetch activity recommendations from ${providerId}. Please try again later.`,
-        });
-        return;
-      }
-      res.status(500).json({ error: sanitizeErrorMessage(error, DEBUG_LOGGING) });
+    if (error instanceof ProviderError) {
+      res.status(error.statusCode).json({ error: error.message });
       return;
     }
 
-    res.status(500).json({ error: sanitizeErrorMessage(error, false) });
+    if (error instanceof Error && (error.message.includes('API_KEY') || error.message.includes('environment variable'))) {
+      res.status(500).json({ error: 'API key not configured. Please contact support.' });
+      return;
+    }
+
+    res.status(500).json({ error: sanitizeErrorMessage(error, DEBUG_LOGGING) });
   }
 });
 

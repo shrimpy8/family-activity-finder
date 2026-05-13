@@ -3,6 +3,7 @@ import type { ActivityFormData, Recommendation } from '../../shared/types';
 import type { LLMProvider, GenerateOptions } from './types';
 import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
+import { ProviderError } from '../../shared/errors';
 
 /**
  * Anthropic Claude Provider implementation
@@ -85,10 +86,18 @@ export class AnthropicProvider implements LLMProvider {
       return recommendations;
     } catch (error) {
       console.error('❌ Claude API Error:', error);
-      if (error instanceof Error) {
-        throw error;
+      if (error instanceof ProviderError) throw error;
+      if (error instanceof Anthropic.APIError) {
+        if (error.status === 401 || error.status === 403) {
+          throw new ProviderError('Anthropic authentication failed — check ANTHROPIC_API_KEY', 'anthropic', 'AUTH', 401);
+        }
+        if (error.status === 429) {
+          throw new ProviderError('Anthropic rate limit exceeded', 'anthropic', 'RATE_LIMIT', 429);
+        }
+        throw new ProviderError(`Anthropic API error: ${error.message}`, 'anthropic', 'UNAVAILABLE');
       }
-      throw new Error('Unknown error calling Claude API');
+      if (error instanceof Error) throw error;
+      throw new ProviderError('Unknown error calling Claude API', 'anthropic', 'UNKNOWN');
     }
   }
 
