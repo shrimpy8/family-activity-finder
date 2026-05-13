@@ -85,3 +85,5 @@ vite.config.*.timestamp-*
 # package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
+# Code audit working documents (local only)
+docs/CODE_REVIEW_ISSUES.md
