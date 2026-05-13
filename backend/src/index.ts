@@ -6,6 +6,8 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import pinoHttp from 'pino-http';
+import { logger } from './shared/logger';
 import recommendRouter from './routes/recommend';
 
 const app = express();
@@ -25,8 +27,9 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
+app.use(pinoHttp({ logger }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL 
+  origin: process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
     : ['http://localhost:5173', 'http://localhost:5174'],
   credentials: false
@@ -47,16 +50,14 @@ app.use('/api', recommendRouter);
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Health check: http://localhost:${PORT}/health`);
-  console.log(`🎯 API endpoint: http://localhost:${PORT}/api/recommend`);
+  logger.info({ port: PORT }, 'Server started');
 });
 
 // Graceful shutdown: finish in-flight requests before exiting
 const shutdown = (signal: string) => {
-  console.log(`Received ${signal}, shutting down gracefully...`);
+  logger.info({ signal }, 'Shutting down gracefully');
   server.close(() => {
-    console.log('Server closed');
+    logger.info('Server closed');
     process.exit(0);
   });
 };

@@ -8,6 +8,7 @@ import { sanitizeErrorMessage } from '../shared/utils/sanitize';
 import { withTimeout } from '../shared/utils/timeout';
 import { DEBUG_LOGGING, OUTPUT_FORMAT, LLM_TIMEOUT_MS } from '../shared/config';
 import { ProviderError } from '../shared/errors';
+import { logger } from '../shared/logger';
 
 const router = Router();
 
@@ -91,11 +92,9 @@ router.post('/recommend', async (req: Request, res: Response) => {
     const formData = validation.data;
 
     if (DEBUG_LOGGING) {
-      console.log('\n========== REQUEST RECEIVED ==========');
-      console.log('Form Data:', JSON.stringify(formData, null, 2));
-      console.log('========================================\n');
+      logger.debug({ formData }, 'Request received');
     } else {
-      console.log('📥 Received request:', { provider: formData.provider, timeSlot: formData.timeSlot });
+      logger.info({ provider: formData.provider, timeSlot: formData.timeSlot }, 'Request received');
     }
 
     const providerId: LLMProvider = formData.provider || 'anthropic';
@@ -108,7 +107,7 @@ router.post('/recommend', async (req: Request, res: Response) => {
     }
 
     const provider = createProvider(providerId);
-    console.log(`🤖 Using provider: ${provider.getProviderId()} (${provider.getModelName()})`);
+    logger.info({ provider: provider.getProviderId(), model: provider.getModelName() }, 'Using provider');
 
     const recommendations = await withTimeout(
       provider.generateRecommendations(formData, { outputFormat: OUTPUT_FORMAT }),
@@ -116,11 +115,11 @@ router.post('/recommend', async (req: Request, res: Response) => {
       `Request to ${provider.getProviderId()} timed out after ${LLM_TIMEOUT_MS / 1000} seconds`
     );
 
-    console.log(`📊 Generated ${recommendations.length} recommendations`);
+    logger.info({ count: recommendations.length }, 'Generated recommendations');
 
     if (DEBUG_LOGGING) {
       recommendations.forEach((rec, index) => {
-        console.log(`\nRecommendation ${index + 1}: ${rec.emoji} ${rec.title}`);
+        logger.debug({ index: index + 1, emoji: rec.emoji, title: rec.title }, 'Recommendation');
       });
     }
 
@@ -128,7 +127,7 @@ router.post('/recommend', async (req: Request, res: Response) => {
     res.json(response);
 
   } catch (error) {
-    console.error('❌ Error:', error);
+    logger.error({ err: error }, 'Error in /recommend');
 
     if (error instanceof ProviderError) {
       res.status(error.statusCode).json({ error: error.message });
@@ -166,7 +165,7 @@ router.post('/recommend/all', async (req: Request, res: Response) => {
       return;
     }
 
-    console.log(`🔄 Requesting recommendations from ${availableProviders.length} providers in parallel...`);
+    logger.info({ providerCount: availableProviders.length }, 'Requesting recommendations in parallel');
 
     const results = await Promise.allSettled(
       availableProviders.map(async (providerId) => {
@@ -185,7 +184,7 @@ router.post('/recommend/all', async (req: Request, res: Response) => {
 
           return { provider: providerId, modelName, recommendations };
         } catch (error) {
-          console.error(`Provider ${providerId} error:`, error);
+          logger.error({ err: error, provider: providerId }, 'Provider error');
           const errorMessage = sanitizeErrorMessage(error, DEBUG_LOGGING);
 
           if (!provider) {
@@ -209,7 +208,7 @@ router.post('/recommend/all', async (req: Request, res: Response) => {
         return result.value;
       }
       const providerId = availableProviders[index];
-      console.error(`Provider ${providerId} settled error:`, result.reason);
+      logger.error({ err: result.reason, provider: providerId }, 'Provider settled error');
       return {
         provider: providerId,
         modelName: 'Unknown',
@@ -217,12 +216,14 @@ router.post('/recommend/all', async (req: Request, res: Response) => {
       };
     });
 
-    console.log(`✅ Completed: ${response.filter(r => 'recommendations' in r).length} succeeded, ${response.filter(r => 'error' in r).length} failed`);
+    const succeeded = response.filter(r => 'recommendations' in r).length;
+    const failed = response.filter(r => 'error' in r).length;
+    logger.info({ succeeded, failed }, 'All-provider request completed');
 
     res.json(response);
 
   } catch (error) {
-    console.error('❌ Error in /recommend/all:', error);
+    logger.error({ err: error }, 'Error in /recommend/all');
     res.status(500).json({ error: sanitizeErrorMessage(error, DEBUG_LOGGING) });
   }
 });

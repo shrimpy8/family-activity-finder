@@ -162,9 +162,9 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Dublin"
                 required
-                aria-invalid={!!fieldErrors.city}
+                aria-invalid={fieldErrors.city ? true : undefined}
                 aria-describedby={fieldErrors.city ? 'city-error' : undefined}
-                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ${fieldErrors.city ? 'border-red-500' : 'border-gray-300'}`}
               />
             </div>
             {fieldErrors.city && (
@@ -188,9 +188,9 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 placeholder="CA"
                 maxLength={2}
                 required
-                aria-invalid={!!fieldErrors.state}
+                aria-invalid={fieldErrors.state ? true : undefined}
                 aria-describedby={fieldErrors.state ? 'state-error' : undefined}
-                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition uppercase"
+                className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition uppercase ${fieldErrors.state ? 'border-red-500' : 'border-gray-300'}`}
               />
             </div>
             {fieldErrors.state && (
@@ -215,9 +215,9 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
               placeholder="94568"
               maxLength={5}
               pattern="\d{5}"
-              aria-invalid={!!fieldErrors.zipCode}
+              aria-invalid={fieldErrors.zipCode ? true : undefined}
               aria-describedby={fieldErrors.zipCode ? 'zipCode-error' : undefined}
-              className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ${fieldErrors.zipCode ? 'border-red-500' : 'border-gray-300'}`}
             />
           </div>
           {fieldErrors.zipCode && (
@@ -243,9 +243,9 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             onChange={(e) => setAgesInput(e.target.value)}
             placeholder="e.g., 5, 8, 12"
             required
-            aria-invalid={!!fieldErrors.ages}
+            aria-invalid={fieldErrors.ages ? true : undefined}
             aria-describedby={fieldErrors.ages ? 'ages-error' : undefined}
-            className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+            className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ${fieldErrors.ages ? 'border-red-500' : 'border-gray-300'}`}
           />
         </div>
         {fieldErrors.ages && (
@@ -272,9 +272,9 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 onChange={(e) => setDate(e.target.value)}
                 min={getTomorrow()}
                 required
-                aria-invalid={!!fieldErrors.date}
+                aria-invalid={fieldErrors.date ? true : undefined}
                 aria-describedby={fieldErrors.date ? 'date-error' : undefined}
-                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+                className={`w-full pl-11 pr-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition ${fieldErrors.date ? 'border-red-500' : 'border-gray-300'}`}
               />
             </div>
             {fieldErrors.date && (

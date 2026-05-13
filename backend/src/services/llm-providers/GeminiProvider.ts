@@ -4,6 +4,7 @@ import type { LLMProvider, GenerateOptions } from './types';
 import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
 import { ProviderError } from '../../shared/errors';
+import { logger } from '../../shared/logger';
 
 /**
  * Gemini Provider implementation
@@ -43,7 +44,7 @@ export class GeminiProvider implements LLMProvider {
   ): Promise<Recommendation[]> {
     const prompt = buildPrompt(formData);
 
-    console.log('🔍 Calling Gemini API...');
+    logger.info('Calling Gemini API');
 
     try {
       const model = this.genAI.getGenerativeModel({
@@ -52,15 +53,13 @@ export class GeminiProvider implements LLMProvider {
       });
       const result = await model.generateContent(prompt);
 
-      console.log('✅ Gemini API response received');
+      logger.info('Gemini API response received');
 
       const response = result.response;
       const responseText = response.text();
 
       if (DEBUG_LOGGING) {
-        console.log('\n========== FULL GEMINI RESPONSE ==========');
-        console.log(responseText);
-        console.log('========== END RESPONSE (length:', responseText.length, 'chars) ==========\n');
+        logger.debug({ responseText, length: responseText.length }, 'Full Gemini response');
       }
 
       if (!responseText) {
@@ -69,7 +68,7 @@ export class GeminiProvider implements LLMProvider {
 
       const recommendations = parseRecommendations(responseText, 'GEMINI');
 
-      console.log(`📊 Parsed ${recommendations.length} recommendations`);
+      logger.info({ count: recommendations.length }, 'Parsed recommendations');
 
       if (recommendations.length === 0) {
         throw new Error('Unable to parse recommendations from Gemini response');
@@ -77,7 +76,7 @@ export class GeminiProvider implements LLMProvider {
 
       return recommendations;
     } catch (error) {
-      console.error('❌ Gemini API Error:', error);
+      logger.error({ err: error }, 'Gemini API error');
       if (error instanceof ProviderError) throw error;
       if (error instanceof Error) {
         // Gemini SDK embeds HTTP status codes in error messages
