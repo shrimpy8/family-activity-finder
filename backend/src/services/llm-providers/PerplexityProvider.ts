@@ -2,6 +2,7 @@ import type { ActivityFormData, Recommendation } from '../../shared/types';
 import type { LLMProvider, GenerateOptions } from './types';
 import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
+import { ProviderError } from '../../shared/errors';
 
 interface PerplexityResponse {
   choices?: Array<{
@@ -79,7 +80,16 @@ export class PerplexityProvider implements LLMProvider {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' })) as { error?: { message?: string } };
-        throw new Error(`Perplexity API error: ${errorData.error?.message || response.statusText}`);
+        if (response.status === 401 || response.status === 403) {
+          throw new ProviderError('Perplexity authentication failed — check PERPLEXITY_API_KEY', 'perplexity', 'AUTH', 401);
+        }
+        if (response.status === 429) {
+          throw new ProviderError('Perplexity rate limit exceeded', 'perplexity', 'RATE_LIMIT', 429);
+        }
+        throw new ProviderError(
+          `Perplexity API error: ${errorData.error?.message || response.statusText}`,
+          'perplexity', 'UNAVAILABLE'
+        );
       }
 
       const data = await response.json() as PerplexityResponse;
@@ -108,10 +118,12 @@ export class PerplexityProvider implements LLMProvider {
       return recommendations;
     } catch (error) {
       console.error('❌ Perplexity API Error:', error);
-      if (error instanceof Error) {
-        throw error;
+      if (error instanceof ProviderError) throw error;
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new ProviderError('Perplexity request timed out', 'perplexity', 'TIMEOUT');
       }
-      throw new Error('Unknown error calling Perplexity API');
+      if (error instanceof Error) throw error;
+      throw new ProviderError('Unknown error calling Perplexity API', 'perplexity', 'UNKNOWN');
     }
   }
 

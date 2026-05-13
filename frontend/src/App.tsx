@@ -2,6 +2,9 @@ import { useState, useRef } from 'react';
 import { ActivityForm } from './components/ActivityForm';
 import { RecommendationCard } from './components/RecommendationCard';
 import { MultiProviderResults } from './components/MultiProviderResults';
+import { LoadingSpinner } from './components/LoadingSpinner';
+import { ErrorPanel } from './components/ErrorPanel';
+import { EmptyState } from './components/EmptyState';
 import type { ActivityFormData, Recommendation, MultiProviderResponse } from './types/index.ts';
 import { getRecommendations, getAllProviderRecommendations } from './services/api';
 
@@ -41,7 +44,9 @@ function App() {
         setMultiProviderResults(results);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        console.error('Error fetching multi-provider recommendations:', err);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching multi-provider recommendations:', err);
+        }
         setError(err instanceof Error ? err.message : 'Failed to load recommendations. Please try again.');
         setLoadingStates({});
       } finally {
@@ -58,7 +63,9 @@ function App() {
         setRecommendations(data);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        console.error('Error fetching recommendations:', err);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching recommendations:', err);
+        }
         setError(err instanceof Error ? err.message : 'Failed to load recommendations. Please try again.');
       } finally {
         setIsLoading(false);
@@ -111,37 +118,16 @@ function App() {
             {isMultiProvider && (
               <>
                 {isLoading && multiProviderResults.length === 0 && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                    <p className="mt-4 text-gray-600 font-medium">Searching with all AI providers...</p>
-                    <p className="mt-2 text-gray-500 text-sm">This may take 10-20 seconds</p>
-                  </div>
+                  <LoadingSpinner message="Searching with all AI providers..." />
                 )}
                 {error && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center border-2 border-red-200 mb-6">
-                    <div className="text-6xl mb-4">⚠️</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Recommendations</h3>
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <button
-                      onClick={() => setError(null)}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                      aria-label="Dismiss error"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
+                  <ErrorPanel error={error} onDismiss={() => setError(null)} />
                 )}
                 {!isLoading && multiProviderResults.length > 0 && (
                   <MultiProviderResults results={multiProviderResults} loadingStates={loadingStates} />
                 )}
                 {!isLoading && multiProviderResults.length === 0 && !error && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                    <div className="text-6xl mb-4">🎪</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Ready to Discover Activities</h3>
-                    <p className="text-gray-500">
-                      Fill out the form on the left to get personalized recommendations for your family
-                    </p>
-                  </div>
+                  <EmptyState />
                 )}
               </>
             )}
@@ -150,36 +136,15 @@ function App() {
             {!isMultiProvider && (
               <>
                 {isLoading && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                    <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                    <p className="mt-4 text-gray-600 font-medium">Searching the web for activities...</p>
-                    <p className="mt-2 text-gray-500 text-sm">This may take 10-20 seconds</p>
-                  </div>
+                  <LoadingSpinner message="Searching the web for activities..." />
                 )}
 
                 {!isLoading && error && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center border-2 border-red-200">
-                    <div className="text-6xl mb-4">⚠️</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Recommendations</h3>
-                    <p className="text-red-600 mb-4">{error}</p>
-                    <button
-                      onClick={() => setError(null)}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                      aria-label="Dismiss error"
-                    >
-                      Try Again
-                    </button>
-                  </div>
+                  <ErrorPanel error={error} onDismiss={() => setError(null)} dismissLabel="Try Again" />
                 )}
 
                 {!isLoading && !error && recommendations.length === 0 && (
-                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                    <div className="text-6xl mb-4">🎪</div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Ready to Discover Activities</h3>
-                    <p className="text-gray-500">
-                      Fill out the form on the left to get personalized recommendations for your family
-                    </p>
-                  </div>
+                  <EmptyState />
                 )}
 
                 {!isLoading && recommendations.length > 0 && (

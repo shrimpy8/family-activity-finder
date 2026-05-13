@@ -65,9 +65,7 @@ export function MultiProviderResults({ results, loadingStates }: MultiProviderRe
                     <span className="text-red-500 text-lg">⚠️</span>
                   ) : hasSuccess ? (
                     <span className="text-green-500 text-lg">✓</span>
-                  ) : (
-                    <span className="text-lg">{getProviderIcon(result.provider as LLMProvider)}</span>
-                  )}
+                  ) : null}
                   <div className="text-left">
                     <div className="font-semibold capitalize flex items-center gap-1">
                       <span className="text-base">{getProviderIcon(result.provider as LLMProvider)}</span>

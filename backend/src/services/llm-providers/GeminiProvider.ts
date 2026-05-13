@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { ActivityFormData, Recommendation } from '../../shared/types';
 import type { LLMProvider, GenerateOptions } from './types';
-import { DEBUG_LOGGING } from '../../shared/config';
+import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
+import { ProviderError } from '../../shared/errors';
 
 /**
  * Gemini Provider implementation
@@ -45,7 +46,10 @@ export class GeminiProvider implements LLMProvider {
     console.log('🔍 Calling Gemini API...');
 
     try {
-      const model = this.genAI.getGenerativeModel({ model: this.modelName });
+      const model = this.genAI.getGenerativeModel({
+        model: this.modelName,
+        generationConfig: { maxOutputTokens: LLM_MAX_TOKENS },
+      });
       const result = await model.generateContent(prompt);
 
       console.log('✅ Gemini API response received');
@@ -74,10 +78,18 @@ export class GeminiProvider implements LLMProvider {
       return recommendations;
     } catch (error) {
       console.error('❌ Gemini API Error:', error);
+      if (error instanceof ProviderError) throw error;
       if (error instanceof Error) {
+        // Gemini SDK embeds HTTP status codes in error messages
+        if (/\b(401|403)\b/.test(error.message)) {
+          throw new ProviderError('Gemini authentication failed — check GEMINI_API_KEY', 'gemini', 'AUTH', 401);
+        }
+        if (/\b429\b/.test(error.message)) {
+          throw new ProviderError('Gemini rate limit exceeded', 'gemini', 'RATE_LIMIT', 429);
+        }
         throw error;
       }
-      throw new Error('Unknown error calling Gemini API');
+      throw new ProviderError('Unknown error calling Gemini API', 'gemini', 'UNKNOWN');
     }
   }
 

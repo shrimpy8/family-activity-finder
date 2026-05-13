@@ -18,38 +18,37 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
   const [preferences, setPreferences] = useState('outdoor activities, family-friendly');
   const [provider, setProvider] = useState<LLMProvider>('anthropic');
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
 
     const trimmedCity = city.trim();
     const trimmedState = state.trim().toUpperCase();
     const trimmedZip = zipCode.trim();
     const trimmedPreferences = preferences.trim();
 
-    // Zip code pattern check (optional field)
-    if (trimmedZip && !/^\d{5}$/.test(trimmedZip)) {
-      setFormError('Zip code must be exactly 5 digits');
-      return;
-    }
-
-    // State format check
-    if (trimmedState && !/^[A-Z]{2}$/.test(trimmedState)) {
-      setFormError('State must be a 2-letter code (e.g. CA)');
-      return;
-    }
-
-    // Parse and validate ages
     const ages = agesInput
       .split(',')
       .map(age => parseInt(age.trim()))
       .filter(age => !isNaN(age) && age >= 0 && age <= 18);
 
-    if (!trimmedCity || !trimmedState || ages.length === 0 || !date || !timeSlot) {
-      setFormError('Please fill in all required fields correctly. Ages must be between 0 and 18.');
+    const errors: Record<string, string> = {};
+    if (!trimmedCity) errors.city = 'City is required';
+    if (!trimmedState.match(/^[A-Z]{2}$/)) errors.state = 'Enter a valid 2-letter state code';
+    if (trimmedZip && !trimmedZip.match(/^\d{5}$/)) errors.zipCode = 'Enter a valid 5-digit zip code';
+    if (ages.length === 0) errors.ages = 'Enter at least one age (0–18)';
+    if (!date) errors.date = 'Date is required';
+
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setFormError('Please correct the highlighted fields');
       return;
     }
+
+    setFormError(null);
+    setFieldErrors({});
 
     onSubmit({
       city: trimmedCity,
@@ -75,6 +74,7 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
     setPreferences('');
     setProvider('anthropic');
     setFormError(null);
+    setFieldErrors({});
   };
 
   const providerOptions: { value: LLMProvider; label: string; model?: string }[] = [
@@ -162,9 +162,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 onChange={(e) => setCity(e.target.value)}
                 placeholder="Dublin"
                 required
+                aria-invalid={!!fieldErrors.city}
+                aria-describedby={fieldErrors.city ? 'city-error' : undefined}
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
             </div>
+            {fieldErrors.city && (
+              <span id="city-error" role="alert" className="text-sm text-red-600 mt-1 block">
+                {fieldErrors.city}
+              </span>
+            )}
           </div>
 
           <div>
@@ -181,9 +188,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 placeholder="CA"
                 maxLength={2}
                 required
+                aria-invalid={!!fieldErrors.state}
+                aria-describedby={fieldErrors.state ? 'state-error' : undefined}
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition uppercase"
               />
             </div>
+            {fieldErrors.state && (
+              <span id="state-error" role="alert" className="text-sm text-red-600 mt-1 block">
+                {fieldErrors.state}
+              </span>
+            )}
           </div>
         </div>
 
@@ -201,9 +215,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
               placeholder="94568"
               maxLength={5}
               pattern="\d{5}"
+              aria-invalid={!!fieldErrors.zipCode}
+              aria-describedby={fieldErrors.zipCode ? 'zipCode-error' : undefined}
               className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
             />
           </div>
+          {fieldErrors.zipCode && (
+            <span id="zipCode-error" role="alert" className="text-sm text-red-600 mt-1 block">
+              {fieldErrors.zipCode}
+            </span>
+          )}
           <p className="mt-1.5 text-xs text-gray-500">Providing a zip code helps get more accurate results</p>
         </div>
       </div>
@@ -222,9 +243,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             onChange={(e) => setAgesInput(e.target.value)}
             placeholder="e.g., 5, 8, 12"
             required
+            aria-invalid={!!fieldErrors.ages}
+            aria-describedby={fieldErrors.ages ? 'ages-error' : undefined}
             className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
           />
         </div>
+        {fieldErrors.ages && (
+          <span id="ages-error" role="alert" className="text-sm text-red-600 mt-1 block">
+            {fieldErrors.ages}
+          </span>
+        )}
         <p className="mt-1.5 text-xs text-gray-500">Enter ages (0–18) separated by commas</p>
       </div>
 
@@ -244,9 +272,16 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
                 onChange={(e) => setDate(e.target.value)}
                 min={getTomorrow()}
                 required
+                aria-invalid={!!fieldErrors.date}
+                aria-describedby={fieldErrors.date ? 'date-error' : undefined}
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
             </div>
+            {fieldErrors.date && (
+              <span id="date-error" role="alert" className="text-sm text-red-600 mt-1 block">
+                {fieldErrors.date}
+              </span>
+            )}
           </div>
 
           <div>
