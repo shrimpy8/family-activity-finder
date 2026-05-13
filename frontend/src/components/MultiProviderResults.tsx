@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { MultiProviderResponse, Recommendation, LLMProvider } from '../types/index.ts';
 import { RecommendationCard } from './RecommendationCard';
 import { getProviderIcon } from '../utils/providerIcons';
@@ -19,14 +19,11 @@ interface MultiProviderResultsProps {
  */
 export function MultiProviderResults({ results, loadingStates }: MultiProviderResultsProps) {
   const [activeTab, setActiveTab] = useState<string>(results[0]?.provider || '');
-  const [expandedErrors, setExpandedErrors] = useState<Record<string, boolean>>({});
 
-  const toggleErrorExpansion = (provider: string) => {
-    setExpandedErrors((prev) => ({
-      ...prev,
-      [provider]: !prev[provider],
-    }));
-  };
+  // Sync active tab when results change (new search resets the tab to first provider)
+  useEffect(() => {
+    setActiveTab(results[0]?.provider || '');
+  }, [results]);
 
   if (results.length === 0) {
     return (
@@ -107,8 +104,6 @@ export function MultiProviderResults({ results, loadingStates }: MultiProviderRe
 
           // Error State
           if (result.error) {
-            const isExpanded = expandedErrors[result.provider] || false;
-
             return (
               <div key={result.provider} className="space-y-4">
                 <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6">
@@ -118,20 +113,7 @@ export function MultiProviderResults({ results, loadingStates }: MultiProviderRe
                       <h3 className="text-lg font-semibold text-red-900 mb-2">
                         Error Loading Recommendations
                       </h3>
-                      <p className="text-red-700 mb-4">{result.error}</p>
-                      <button
-                        onClick={() => toggleErrorExpansion(result.provider)}
-                        className="text-sm text-red-600 hover:text-red-800 font-medium flex items-center gap-1"
-                      >
-                        {isExpanded ? '▼' : '▶'} {isExpanded ? 'Hide' : 'Show'} Full Error Response
-                      </button>
-                      {isExpanded && (
-                        <div className="mt-4 bg-white border border-red-200 rounded p-4">
-                          <pre className="text-xs overflow-x-auto text-gray-800">
-                            {JSON.stringify(result.fullErrorResponse, null, 2)}
-                          </pre>
-                        </div>
-                      )}
+                      <p className="text-red-700">{result.error}</p>
                     </div>
                   </div>
                 </div>
@@ -157,7 +139,7 @@ export function MultiProviderResults({ results, loadingStates }: MultiProviderRe
                 <div className="divide-y divide-gray-100">
                   {result.recommendations.map((rec: Recommendation, index: number) => (
                     <RecommendationCard
-                      key={index}
+                      key={`${rec.title}-${rec.location}`}
                       recommendation={rec}
                       number={index + 1}
                     />

@@ -78,6 +78,4 @@ export interface MultiProviderResponse {
   recommendations?: Recommendation[];
   /** Error message if failed */
   error?: string;
-  /** Full error response object for debugging */
-  fullErrorResponse?: any;
 }

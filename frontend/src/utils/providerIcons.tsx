@@ -18,10 +18,4 @@ export function getProviderIcon(provider: LLMProvider): string {
   }
 }
 
-/**
- * Get provider icon component (can be extended to use SVG icons in the future)
- */
-export function ProviderIcon({ provider, className = 'text-xl' }: { provider: LLMProvider; className?: string }) {
-  return <span className={className}>{getProviderIcon(provider)}</span>;
-}
 

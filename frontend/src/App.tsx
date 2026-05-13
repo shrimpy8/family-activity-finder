@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ActivityForm } from './components/ActivityForm';
 import { RecommendationCard } from './components/RecommendationCard';
 import { MultiProviderResults } from './components/MultiProviderResults';
@@ -13,10 +13,15 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isMultiProvider, setIsMultiProvider] = useState(false);
 
+  // Cancels any in-flight request when a new submission arrives
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const handleFormSubmit = async (formData: ActivityFormData) => {
-    console.log('Form submitted:', formData);
-    
-    // Check if "all" providers is selected
+    // Cancel any previous in-flight request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     if (formData.provider === 'all') {
       setIsMultiProvider(true);
       setError(null);
@@ -25,36 +30,34 @@ function App() {
       setLoadingStates({});
 
       try {
-        // Remove provider field for the /all endpoint
-        const { provider, ...formDataWithoutProvider } = formData;
-        const results = await getAllProviderRecommendations(formDataWithoutProvider);
-        
-        // Mark all providers as loaded (not loading)
+        const { provider: _provider, ...formDataWithoutProvider } = formData;
+        const results = await getAllProviderRecommendations(formDataWithoutProvider, controller.signal);
+
         const completedLoadingStates: Record<string, boolean> = {};
         results.forEach((result) => {
           completedLoadingStates[result.provider] = false;
         });
         setLoadingStates(completedLoadingStates);
-        
         setMultiProviderResults(results);
-        setIsLoading(false);
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         console.error('Error fetching multi-provider recommendations:', err);
         setError(err instanceof Error ? err.message : 'Failed to load recommendations. Please try again.');
         setLoadingStates({});
+      } finally {
         setIsLoading(false);
       }
     } else {
-      // Single provider flow
       setIsMultiProvider(false);
       setIsLoading(true);
       setError(null);
       setRecommendations([]);
 
       try {
-        const data = await getRecommendations(formData);
+        const data = await getRecommendations(formData, controller.signal);
         setRecommendations(data);
       } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
         console.error('Error fetching recommendations:', err);
         setError(err instanceof Error ? err.message : 'Failed to load recommendations. Please try again.');
       } finally {
@@ -98,7 +101,7 @@ function App() {
       <div className="max-w-[1574px] mx-auto p-6">
         <div className="flex gap-6">
           {/* Left Column - Form */}
-          <div className="sticky top-6 self-start" style={{ width: '418px', flexShrink: 0 }}>
+          <div className="sticky top-6 self-start w-full lg:w-[418px] flex-shrink-0">
             <ActivityForm onSubmit={handleFormSubmit} />
           </div>
 
@@ -122,6 +125,7 @@ function App() {
                     <button
                       onClick={() => setError(null)}
                       className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      aria-label="Dismiss error"
                     >
                       Dismiss
                     </button>
@@ -161,6 +165,7 @@ function App() {
                     <button
                       onClick={() => setError(null)}
                       className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                      aria-label="Dismiss error"
                     >
                       Try Again
                     </button>
@@ -179,7 +184,6 @@ function App() {
 
                 {!isLoading && recommendations.length > 0 && (
                   <div className="bg-white rounded-lg shadow-sm">
-                    {/* Results Header */}
                     <div className="border-b border-gray-200 px-6 py-4">
                       <div className="flex items-center justify-between">
                         <div>
@@ -192,11 +196,10 @@ function App() {
                       </div>
                     </div>
 
-                    {/* Recommendations List */}
                     <div className="divide-y divide-gray-100">
                       {recommendations.map((rec, index) => (
                         <RecommendationCard
-                          key={index}
+                          key={`${rec.title}-${rec.location}`}
                           recommendation={rec}
                           number={index + 1}
                         />
