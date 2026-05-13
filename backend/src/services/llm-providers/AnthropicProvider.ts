@@ -4,6 +4,7 @@ import type { LLMProvider, GenerateOptions } from './types';
 import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
 import { ProviderError } from '../../shared/errors';
+import { logger } from '../../shared/logger';
 
 /**
  * Anthropic Claude Provider implementation
@@ -42,7 +43,7 @@ export class AnthropicProvider implements LLMProvider {
   ): Promise<Recommendation[]> {
     const prompt = buildPrompt(formData);
 
-    console.log('🔍 Calling Claude API with web search...');
+    logger.info('Calling Claude API with web search');
 
     try {
       const message = await this.anthropic.messages.create({
@@ -58,7 +59,7 @@ export class AnthropicProvider implements LLMProvider {
         messages: [{ role: 'user', content: prompt }],
       });
 
-      console.log('✅ Claude API response received');
+      logger.info('Claude API response received');
 
       const responseText = message.content
         .filter((block) => block.type === 'text')
@@ -66,9 +67,7 @@ export class AnthropicProvider implements LLMProvider {
         .join('\n');
 
       if (DEBUG_LOGGING) {
-        console.log('\n========== FULL CLAUDE RESPONSE ==========');
-        console.log(responseText);
-        console.log('========== END RESPONSE (length:', responseText.length, 'chars) ==========\n');
+        logger.debug({ responseText, length: responseText.length }, 'Full Claude response');
       }
 
       if (!responseText) {
@@ -77,7 +76,7 @@ export class AnthropicProvider implements LLMProvider {
 
       const recommendations = parseRecommendations(responseText, 'ANTHROPIC');
 
-      console.log(`📊 Parsed ${recommendations.length} recommendations`);
+      logger.info({ count: recommendations.length }, 'Parsed recommendations');
 
       if (recommendations.length === 0) {
         throw new Error('Unable to parse recommendations from Claude response');
@@ -85,7 +84,7 @@ export class AnthropicProvider implements LLMProvider {
 
       return recommendations;
     } catch (error) {
-      console.error('❌ Claude API Error:', error);
+      logger.error({ err: error }, 'Claude API error');
       if (error instanceof ProviderError) throw error;
       if (error instanceof Anthropic.APIError) {
         if (error.status === 401 || error.status === 403) {

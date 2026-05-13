@@ -3,6 +3,7 @@ import type { LLMProvider, GenerateOptions } from './types';
 import { DEBUG_LOGGING, LLM_MAX_TOKENS } from '../../shared/config';
 import { buildPrompt, parseRecommendations } from './prompt';
 import { ProviderError } from '../../shared/errors';
+import { logger } from '../../shared/logger';
 
 interface PerplexityResponse {
   choices?: Array<{
@@ -51,7 +52,7 @@ export class PerplexityProvider implements LLMProvider {
   ): Promise<Recommendation[]> {
     const prompt = buildPrompt(formData);
 
-    console.log('🔍 Calling Perplexity API with web search...');
+    logger.info('Calling Perplexity API with web search');
 
     try {
       // AbortController ensures the connection is closed when the outer withTimeout fires
@@ -93,14 +94,12 @@ export class PerplexityProvider implements LLMProvider {
       }
 
       const data = await response.json() as PerplexityResponse;
-      console.log('✅ Perplexity API response received');
+      logger.info('Perplexity API response received');
 
       const responseText = data.choices?.[0]?.message?.content || '';
 
       if (DEBUG_LOGGING) {
-        console.log('\n========== FULL PERPLEXITY RESPONSE ==========');
-        console.log(responseText);
-        console.log('========== END RESPONSE (length:', responseText.length, 'chars) ==========\n');
+        logger.debug({ responseText, length: responseText.length }, 'Full Perplexity response');
       }
 
       if (!responseText) {
@@ -109,7 +108,7 @@ export class PerplexityProvider implements LLMProvider {
 
       const recommendations = parseRecommendations(responseText, 'PERPLEXITY');
 
-      console.log(`📊 Parsed ${recommendations.length} recommendations`);
+      logger.info({ count: recommendations.length }, 'Parsed recommendations');
 
       if (recommendations.length === 0) {
         throw new Error('Unable to parse recommendations from Perplexity response');
@@ -117,7 +116,7 @@ export class PerplexityProvider implements LLMProvider {
 
       return recommendations;
     } catch (error) {
-      console.error('❌ Perplexity API Error:', error);
+      logger.error({ err: error }, 'Perplexity API error');
       if (error instanceof ProviderError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {
         throw new ProviderError('Perplexity request timed out', 'perplexity', 'TIMEOUT');

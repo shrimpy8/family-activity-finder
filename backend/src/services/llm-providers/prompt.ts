@@ -3,6 +3,7 @@ import { TIME_SLOT_LABELS } from '../../shared/constants';
 import { formatDateLong } from '../../shared/utils/date';
 import { sanitizeForPrompt } from '../../shared/utils/sanitize';
 import { DEBUG_LOGGING } from '../../shared/config';
+import { logger } from '../../shared/logger';
 
 /**
  * Build the activity-search prompt from form data.
@@ -94,16 +95,16 @@ Begin your web search now and provide 5 recommendations.`;
 export function parseRecommendations(responseText: string, providerLabel = 'LLM'): Recommendation[] {
   const recommendations: Recommendation[] = [];
 
-  console.log(`\n🔍 PARSING ${providerLabel} RECOMMENDATIONS...`);
+  logger.debug({ provider: providerLabel }, 'Parsing recommendations');
 
   const recommendationPattern = /([\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}][️]?)\s*\*\*([^*]+)\*\*\s*\n📍\s*([^•\n]+)•\s*([^\n]+)\s*\n+(.+?)(?=\n[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]|$)/gus;
 
   const matches = [...responseText.matchAll(recommendationPattern)];
-  console.log(`📦 Found ${matches.length} recommendation matches`);
+  logger.debug({ provider: providerLabel, matchCount: matches.length }, 'Regex matches found');
 
   for (const match of matches) {
     if (!match[1] || !match[2] || !match[3] || !match[4] || !match[5]) {
-      console.log(`\n❌ Skipped malformed match`);
+      logger.debug({ provider: providerLabel }, 'Skipped malformed match');
       continue;
     }
 
@@ -114,12 +115,10 @@ export function parseRecommendations(responseText: string, providerLabel = 'LLM'
     const description = match[5].trim();
 
     if (DEBUG_LOGGING) {
-      console.log(`\n✅ Parsed recommendation #${recommendations.length + 1}:`);
-      console.log(`   Emoji: "${emoji}"`);
-      console.log(`   Title: "${title}"`);
-      console.log(`   Location: "${location}"`);
-      console.log(`   Distance: "${distance}"`);
-      console.log(`   Description: "${description.substring(0, 100)}..."`);
+      logger.debug(
+        { index: recommendations.length + 1, emoji, title, location, distance, descriptionSnippet: description.substring(0, 100) },
+        'Parsed recommendation'
+      );
     }
 
     recommendations.push({ emoji, title, description, location, distance });
