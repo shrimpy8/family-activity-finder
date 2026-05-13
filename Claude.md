@@ -22,13 +22,13 @@ This document captures key architectural decisions, patterns, and technical insi
 
 **Implementation:**
 ```typescript
-// All providers implement the same LLMProvider interface
+// Providers are cached after first instantiation — stateless after construction
+const providerCache = new Map<string, LLMProvider>();
+
 export function createProvider(provider: LLMProviderType): LLMProvider {
-  switch (provider) {
-    case 'anthropic': return new AnthropicProvider();
-    case 'perplexity': return new PerplexityProvider();
-    case 'gemini': return new GeminiProvider();
-  }
+  const cached = providerCache.get(provider);
+  if (cached) return cached;
+  // instantiate, cache, return
 }
 ```
 
@@ -63,7 +63,7 @@ export function createProvider(provider: LLMProviderType): LLMProvider {
 
 ### 3. Consistent Prompt Template Across Providers
 
-**Location:** All provider files (`AnthropicProvider.ts`, `PerplexityProvider.ts`, `GeminiProvider.ts`)
+**Location:** `backend/src/services/llm-providers/prompt.ts` — `buildPrompt()` and `parseRecommendations()`
 
 **Why:** Using the same prompt template ensures consistent output format regardless of which AI provider is used. This allows:
 
@@ -77,6 +77,7 @@ export function createProvider(provider: LLMProviderType): LLMProvider {
 - Date formatting: Human-readable format (e.g., "Saturday, November 16, 2025")
 - Time slot labels: Consistent mapping (all_day → "All Day")
 - Output format: Markdown with emoji, title, location, distance, description
+- All user-supplied values wrapped in `<user_input>` XML delimiters and sanitized to prevent prompt injection
 
 ---
 
@@ -150,13 +151,15 @@ const results = await Promise.allSettled(
 
 **Why:** Different environments (dev, staging, production) need different configurations. Environment variables provide flexibility.
 
-**Key Configurations:**
+**Key Configurations** (all centralised in `backend/src/shared/config.ts`):
 
-- **API Keys:** Provider-specific keys (required)
+- **API Keys:** Provider-specific keys (required, read directly in provider constructors)
 - **Model Names:** Configurable per provider (ANTHROPIC_API_MODEL, etc.)
 - **Display Names:** User-friendly names (ANTHROPIC_MODEL_NAME, etc.)
-- **Output Format:** Markdown or JSON (OUTPUT_FORMAT)
-- **Debug Logging:** Verbose logging flag (DEBUG_LOGGING)
+- **Output Format:** Markdown or JSON (`OUTPUT_FORMAT`, default: `markdown`)
+- **Debug Logging:** Verbose logging flag (`DEBUG_LOGGING`, default: `false`)
+- **Timeout:** Per-provider LLM timeout (`LLM_TIMEOUT_MS`, default: `60000`)
+- **Max Tokens:** LLM response token limit (`LLM_MAX_TOKENS`, default: `2048`)
 
 **Pattern:** Always provide sensible defaults, validate env vars on initialization
 

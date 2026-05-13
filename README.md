@@ -140,6 +140,7 @@ family-activity-finder/
 │   ├── src/
 │   │   ├── components/      # React components
 │   │   │   ├── ActivityForm.tsx
+│   │   │   ├── ErrorBoundary.tsx
 │   │   │   ├── RecommendationCard.tsx
 │   │   │   └── MultiProviderResults.tsx
 │   │   ├── services/        # API integration
@@ -164,8 +165,10 @@ family-activity-finder/
 │   │   │       ├── PerplexityProvider.ts
 │   │   │       ├── GeminiProvider.ts
 │   │   │       ├── factory.ts
+│   │   │       ├── prompt.ts       # Shared buildPrompt + parseRecommendations
 │   │   │       └── types.ts
 │   │   ├── shared/         # Shared utilities and types
+│   │   │   ├── config.ts       # Centralised env-var config
 │   │   │   ├── constants/
 │   │   │   ├── types/
 │   │   │   ├── utils/
@@ -241,8 +244,7 @@ family-activity-finder/
 - Tabbed interface for viewing results from multiple providers
 - Individual provider success/error states with visual indicators
 - Loading indicators per provider
-- Expandable error details for debugging
-- Seamless switching between provider results
+- Seamless switching between provider results; active tab auto-resets on new search
 
 ### API Service (backend/src/routes/recommend.ts)
 
@@ -270,6 +272,8 @@ DEBUG_LOGGING=false                    # Optional: Enable verbose logging
 
 # Backend-only configuration
 OUTPUT_FORMAT=markdown                 # Optional: LLM output format (markdown or json, default: markdown)
+LLM_TIMEOUT_MS=60000                   # Optional: Per-provider timeout in ms (default: 60000)
+LLM_MAX_TOKENS=2048                    # Optional: Max tokens per LLM response (default: 2048)
 ```
 
 ### Frontend (.env) - Optional
@@ -365,8 +369,7 @@ Fetches activity recommendations from all available AI providers in parallel. Us
   {
     "provider": "gemini",
     "modelName": "Gemini 2.5 Flash",
-    "error": "API request failed",
-    "fullErrorResponse": {...}
+    "error": "API request failed"
   }
 ]
 ```
