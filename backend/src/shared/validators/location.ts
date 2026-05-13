@@ -3,7 +3,7 @@
  */
 
 import { VALIDATION_PATTERNS, INPUT_CONSTRAINTS } from '../constants/validation';
-import { US_STATES } from '../constants/states';
+import { isValidState } from '../constants/states';
 
 /**
  * Validate city name
@@ -20,11 +20,11 @@ export const validateCityName = (city: string | undefined): string | null => {
     return 'City cannot be empty';
   }
 
-  if (city.length > INPUT_CONSTRAINTS.CITY_MAX_LENGTH) {
+  if (trimmedCity.length > INPUT_CONSTRAINTS.CITY_MAX_LENGTH) {
     return `City must be ${INPUT_CONSTRAINTS.CITY_MAX_LENGTH} characters or less`;
   }
 
-  if (!VALIDATION_PATTERNS.CITY_NAME.test(city)) {
+  if (!VALIDATION_PATTERNS.CITY_NAME.test(trimmedCity)) {
     return 'City contains invalid characters (only letters, spaces, hyphens, apostrophes, and periods allowed)';
   }
 
@@ -41,7 +41,7 @@ export const validateState = (state: string | undefined): string | null => {
     return 'State is required and must be a string';
   }
 
-  if (!US_STATES.includes(state.toUpperCase() as any)) {
+  if (!isValidState(state)) {
     return 'State must be a valid US state code (e.g., CA, NY, TX)';
   }
 

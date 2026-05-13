@@ -19,10 +19,10 @@ export function sanitizeForPrompt(input: string): string {
     .replace(/[\r\n]+/g, ' ')
     // Remove multiple consecutive spaces
     .replace(/\s+/g, ' ')
-    // Remove or escape backticks (used for code blocks in prompts)
-    .replace(/`/g, "'")
-    // Remove or escape triple backticks (markdown code blocks)
+    // Replace triple backticks FIRST (before single-backtick replacement)
     .replace(/```/g, "'''")
+    // Replace remaining single backticks
+    .replace(/`/g, "'")
     // Remove control characters except spaces
     .replace(/[\x00-\x1F\x7F]/g, '')
     // Trim whitespace
@@ -54,9 +54,8 @@ export function sanitizeErrorMessage(
 
   // If it's already a string, sanitize it
   if (typeof error === 'string') {
-    // Remove file paths (common in error messages)
     let sanitized = error
-      .replace(/\/[^\s]+/g, '[path]') // Remove file paths
+      .replace(/(\/[a-zA-Z0-9_\-]+){2,}/g, '[path]') // Remove multi-segment file paths only
       .replace(/at\s+[^\s]+\s+\([^)]+\)/g, '[stack trace]') // Remove stack trace lines
       .replace(/Error:\s*/gi, '') // Remove "Error:" prefix
       .trim();
@@ -80,7 +79,7 @@ export function sanitizeErrorMessage(
       .replace(/password/gi, '[password]')
       .replace(/secret/gi, '[secret]')
       .replace(/token/gi, '[token]')
-      .replace(/\/[^\s]+/g, '[path]')
+      .replace(/(\/[a-zA-Z0-9_\-]+){2,}/g, '[path]')
       .trim();
 
     // Only include error name/details if explicitly requested (for debugging)

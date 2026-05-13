@@ -3,18 +3,10 @@ import type { ActivityFormData, TimeSlot, LLMProvider } from '../types/index.ts'
 import { getNextWeekend, getTomorrow } from '../utils/date';
 import { getProviderIcon } from '../utils/providerIcons';
 
-/**
- * Props for ActivityForm component
- */
 interface ActivityFormProps {
-  /** Callback function called when form is submitted with valid data */
   onSubmit: (data: ActivityFormData) => void;
 }
 
-/**
- * ActivityForm component - Main form for searching family activities
- * Allows users to input location, date, preferences, and select AI provider
- */
 export function ActivityForm({ onSubmit }: ActivityFormProps) {
   const [city, setCity] = useState('Dublin');
   const [state, setState] = useState('CA');
@@ -25,33 +17,50 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
   const [distance, setDistance] = useState(10);
   const [preferences, setPreferences] = useState('outdoor activities, family-friendly');
   const [provider, setProvider] = useState<LLMProvider>('anthropic');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
 
-    // Parse ages from comma-separated string
-    const ages = agesInput
-      .split(',')
-      .map(age => parseInt(age.trim()))
-      .filter(age => !isNaN(age));
+    const trimmedCity = city.trim();
+    const trimmedState = state.trim().toUpperCase();
+    const trimmedZip = zipCode.trim();
+    const trimmedPreferences = preferences.trim();
 
-    // Basic validation
-    if (!city || !state || ages.length === 0 || !date || !timeSlot) {
-      alert('Please fill in all required fields correctly');
+    // Zip code pattern check (optional field)
+    if (trimmedZip && !/^\d{5}$/.test(trimmedZip)) {
+      setFormError('Zip code must be exactly 5 digits');
       return;
     }
 
-    // Submit form data
+    // State format check
+    if (trimmedState && !/^[A-Z]{2}$/.test(trimmedState)) {
+      setFormError('State must be a 2-letter code (e.g. CA)');
+      return;
+    }
+
+    // Parse and validate ages
+    const ages = agesInput
+      .split(',')
+      .map(age => parseInt(age.trim()))
+      .filter(age => !isNaN(age) && age >= 0 && age <= 18);
+
+    if (!trimmedCity || !trimmedState || ages.length === 0 || !date || !timeSlot) {
+      setFormError('Please fill in all required fields correctly. Ages must be between 0 and 18.');
+      return;
+    }
+
     onSubmit({
-      city,
-      state,
-      zipCode: zipCode || undefined,
+      city: trimmedCity,
+      state: trimmedState,
+      zipCode: trimmedZip || undefined,
       ages,
       date,
       timeSlot,
       distance,
-      preferences,
-      provider
+      preferences: trimmedPreferences,
+      provider,
     });
   };
 
@@ -60,20 +69,22 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
     setState('');
     setZipCode('');
     setAgesInput('');
-    setDate('');
-    setTimeSlot('afternoon');
+    setDate(getNextWeekend());
+    setTimeSlot('all_day');
     setDistance(10);
     setPreferences('');
     setProvider('anthropic');
+    setFormError(null);
   };
 
-  // Provider options with model names
   const providerOptions: { value: LLMProvider; label: string; model?: string }[] = [
     { value: 'anthropic', label: 'Anthropic Claude', model: 'Sonnet 4.5' },
     { value: 'perplexity', label: 'Perplexity', model: 'Sonar' },
     { value: 'gemini', label: 'Google Gemini', model: '2.5 Flash' },
     { value: 'all', label: 'All AI Providers' },
   ];
+
+  const selectedProvider = providerOptions.find((opt) => opt.value === provider);
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-6 space-y-5">
@@ -83,7 +94,14 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
         <p className="text-sm text-gray-500 mt-1">Tell us about your family</p>
       </div>
 
-      {/* LLM Provider Selection - Radio Button Group */}
+      {/* Inline form error */}
+      {formError && (
+        <div role="alert" className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {formError}
+        </div>
+      )}
+
+      {/* LLM Provider Selection */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-3">
           AI Provider <span className="text-red-500">*</span>
@@ -124,14 +142,13 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
         <p className="mt-2 text-xs text-gray-500">
           {provider === 'all'
             ? 'All available AI providers will be queried in parallel'
-            : `Selected: ${providerOptions.find((opt) => opt.value === provider)?.label}${providerOptions.find((opt) => opt.value === provider)?.model ? ` - ${providerOptions.find((opt) => opt.value === provider)?.model}` : ''}`}
+            : `Selected: ${selectedProvider?.label}${selectedProvider?.model ? ` - ${selectedProvider.model}` : ''}`}
         </p>
       </div>
 
       {/* Location Section */}
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          {/* City Input */}
           <div>
             <label htmlFor="city" className="block text-sm font-semibold text-gray-700 mb-2">
               City <span className="text-red-500">*</span>
@@ -150,7 +167,6 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             </div>
           </div>
 
-          {/* State Input */}
           <div>
             <label htmlFor="state" className="block text-sm font-semibold text-gray-700 mb-2">
               State <span className="text-red-500">*</span>
@@ -171,7 +187,6 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
           </div>
         </div>
 
-        {/* Zip Code Input (Optional) */}
         <div>
           <label htmlFor="zipCode" className="block text-sm font-semibold text-gray-700 mb-2">
             Zip Code <span className="text-gray-400 font-normal">(optional - for more precision)</span>
@@ -185,6 +200,7 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
               onChange={(e) => setZipCode(e.target.value)}
               placeholder="94568"
               maxLength={5}
+              pattern="\d{5}"
               className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
             />
           </div>
@@ -209,13 +225,12 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
           />
         </div>
-        <p className="mt-1.5 text-xs text-gray-500">Enter ages separated by commas</p>
+        <p className="mt-1.5 text-xs text-gray-500">Enter ages (0–18) separated by commas</p>
       </div>
 
       {/* Date and Time Selection */}
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          {/* Date Picker */}
           <div>
             <label htmlFor="date" className="block text-sm font-semibold text-gray-700 mb-2">
               Date <span className="text-red-500">*</span>
@@ -234,7 +249,6 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             </div>
           </div>
 
-          {/* Time Slot Dropdown */}
           <div>
             <label htmlFor="timeSlot" className="block text-sm font-semibold text-gray-700 mb-2">
               Time <span className="text-red-500">*</span>
@@ -299,9 +313,11 @@ export function ActivityForm({ onSubmit }: ActivityFormProps) {
             onChange={(e) => setPreferences(e.target.value)}
             placeholder="e.g., outdoor, educational, free or low-cost"
             rows={3}
+            maxLength={500}
             className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition resize-none"
           />
         </div>
+        <p className="mt-1 text-xs text-gray-400 text-right">{preferences.length}/500</p>
       </div>
 
       {/* Action Buttons */}

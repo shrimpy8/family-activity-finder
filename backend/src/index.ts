@@ -11,13 +11,16 @@ import recommendRouter from './routes/recommend';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Rate limiter: 10 requests per 15 minutes per IP
+// Rate limiter: 10 requests per 15 minutes per IP.
+// Uses the default in-memory store — in a multi-instance deploy each instance has
+// its own counter, giving N*10 effective requests per IP. For production multi-instance
+// deployments, swap the store for rate-limit-redis.
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10, // Limit each IP to 10 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 10,
   message: 'Too many requests from this IP, please try again after 15 minutes.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // Middleware
@@ -26,14 +29,15 @@ app.use(cors({
   origin: process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
     : ['http://localhost:5173', 'http://localhost:5174'],
-  credentials: true
+  credentials: false
 }));
 app.use(express.json({ limit: '10kb' }));
 
 // Apply rate limiter to API routes
 app.use('/api/', limiter);
 
-// Health check endpoint
+// Health check endpoint — intentionally outside the rate limiter so load balancers
+// and monitoring probes can always reach it without consuming the IP quota.
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -42,8 +46,19 @@ app.get('/health', (_req, res) => {
 app.use('/api', recommendRouter);
 
 // Start server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
   console.log(`🎯 API endpoint: http://localhost:${PORT}/api/recommend`);
 });
+
+// Graceful shutdown: finish in-flight requests before exiting
+const shutdown = (signal: string) => {
+  console.log(`Received ${signal}, shutting down gracefully...`);
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

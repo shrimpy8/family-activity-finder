@@ -15,12 +15,13 @@ export interface RecommendResponse {
  * @returns Promise resolving to an array of recommendations
  * @throws Error if the API request fails
  */
-export async function getRecommendations(formData: ActivityFormData): Promise<Recommendation[]> {
+export async function getRecommendations(formData: ActivityFormData, signal?: AbortSignal): Promise<Recommendation[]> {
   const response = await fetch(`${API_BASE_URL}/api/recommend`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    signal: signal ?? AbortSignal.timeout(30_000),
     body: JSON.stringify(formData),
   });
 
@@ -40,13 +41,15 @@ export async function getRecommendations(formData: ActivityFormData): Promise<Re
  * @throws Error if the API request fails
  */
 export async function getAllProviderRecommendations(
-  formData: Omit<ActivityFormData, 'provider'>
+  formData: Omit<ActivityFormData, 'provider'>,
+  signal?: AbortSignal
 ): Promise<MultiProviderResponse[]> {
   const response = await fetch(`${API_BASE_URL}/api/recommend/all`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    signal: signal ?? AbortSignal.timeout(90_000),
     body: JSON.stringify(formData),
   });
 
