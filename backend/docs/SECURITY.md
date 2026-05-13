@@ -29,7 +29,7 @@ Family Activity Finder implements enterprise-grade security measures to protect 
 
 #### 4. Comprehensive Input Validation
 - **Protection:** Prevents SQL injection, XSS, and prompt injection attacks
-- **Location:** `backend/src/routes/recommend.ts:178-292`
+- **Location:** `backend/src/routes/recommend.ts` — `validateFormData()` function
 - **Validation Rules:**
   - **City:** 1-100 characters, letters/spaces/hyphens/apostrophes/periods only
   - **State:** Valid US state code (50 states + DC)
@@ -179,7 +179,7 @@ If you receive HTTP 429, wait for the time specified in `RateLimit-Reset` header
 
 ### Credentials
 
-- **Enabled:** `credentials: true` for future authentication support
+- **Disabled:** `credentials: false` — no authentication is implemented; enable only when auth is added
 
 ### Blocked Origins
 
